@@ -1,3 +1,5 @@
+# Copyright (c) 2022 Philip Cleckler. See https://github.com/pcleckler/GitDiff for license and usage.
+
 enum GitDiffInclusion {
     Left  = 0
     Right = 1
@@ -16,6 +18,19 @@ function ConvertFrom-GitDiff {
             ConvertFrom-GitDiff -diffText <textual results of a git diff command>
 
             git diff | ConvertFrom-GitDiff
+
+    #>
+    <#PSScriptInfo
+
+        .VERSION 1.0
+
+        .AUTHOR Philip Cleckler
+
+        .COPYRIGHT (c) 2022 Philip Cleckler
+
+        .LICENSEURI https://raw.githubusercontent.com/pcleckler/GitDiff/main/LICENSE
+
+        .PROJECTURI https://github.com/pcleckler/GitDiff
     #>
     param (
         [Parameter(
