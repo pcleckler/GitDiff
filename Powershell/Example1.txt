@@ -1,0 +1,13 @@
+diff --git a/osx/.gitconfig b/osx/.gitconfig
+index 4fd8f04..fcd220c 100644
+--- a/osx/.gitconfig
++++ b/osx/.gitconfig
+@@ -11,7 +11,7 @@ <== HERE
+ [color "branch"]
+        upstream = cyan
+ [color "diff"]
+-       meta = yellow
++       meta = cyan
+        plain = white dim
+        old = red bold
+        new = green bold
