@@ -14,9 +14,14 @@ function ConvertFrom-GitDiff {
 
         .EXAMPLE
             ConvertFrom-GitDiff -diffText <textual results of a git diff command>
+
+            git diff | ConvertFrom-GitDiff
     #>
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(
+            Mandatory = $true,
+            ValueFromPipeline = $true
+        )]
         [string]
         $diffText
     )
@@ -28,6 +33,7 @@ function ConvertFrom-GitDiff {
         LeftFilename  = ""
         RightFilename = ""
         Chunks        = (New-Object System.Collections.Generic.List[PSCustomObject])
+        Messages      = (New-Object System.Collections.Generic.List[string])
     }
 
     $capture = $false
@@ -38,72 +44,65 @@ function ConvertFrom-GitDiff {
 
     foreach ($line in $lineList) {
 
-        switch ($true) {
+        if ($line.StartsWith("diff") -And -not($capture)) {
 
-            ($line.StartsWith("diff") -And -not($capture)) {
-                # "Ignore"
+            # "Ignore"
+
+        } elseif ($line.StartsWith("index") -And -not($capture)) {
+
+            if ($line -match "^index ([0-9A-Fa-f]+)..([0-9A-Fa-f]+) ([0-9]+)$") {
+                $diff.LeftHash  = $matches[1]
+                $diff.RightHash = $matches[2]
+                $diff.Mode      = $matches[3]
             }
 
-            ($line.StartsWith("index") -And -not($capture)) {
+        } elseif ($line.StartsWith("---") -And -not($capture)) {
 
-                if ($line -match "^index ([0-9A-Fa-f]+)..([0-9A-Fa-f]+) ([0-9]+)$") {
-                    $diff.LeftHash  = $matches[1]
-                    $diff.RightHash = $matches[2]
-                    $diff.Mode      = $matches[3]
-                }
+            if ($line -match "^--- (.*)$") {
+                $diff.LeftFilename  = $matches[1]
             }
 
-            ($line.StartsWith("---") -And -not($capture)) {
+        } elseif ($line.StartsWith("+++") -And -not($capture)) {
 
-                if ($line -match "^--- (.*)$") {
-                    $diff.LeftFilename  = $matches[1]
-                }
+            if ($line -match "^\+\+\+ (.*)$") {
+                $diff.RightFilename  = $matches[1]
             }
 
-            ($line.StartsWith("+++") -And -not($capture)) {
+        } elseif ($line -match "^\\\s*(.*)$") {
 
-                if ($line -match "^\+\+\+ (.*)$") {
-                    $diff.RightFilename  = $matches[1]
-                }
+            $diff.Messages.Add($matches[1])
+
+        } elseif ($line -match "^@@ .* \+([0-9]+),[0-9]+ @@\s*(.*)$") {
+
+            $capture = $true
+
+            $chunk = [PSCustomObject]@{
+                StartLine = [long]$matches[1]
+                LineCount = 1
+                Lines     = (New-Object System.Collections.Generic.List[PSCustomObject])
             }
 
-            $line.StartsWith("@@") {
+            $chunk.Lines.Add([PSCustomObject]@{
+                Line      = $matches[2]
+                Inclusion = [GitDiffInclusion]::Both
+            })
 
-                # Break up line by RegEx
-                if ($line -match "^@@ .* \+([0-9]+),[0-9]+ @@\s*(.*)$") {
+            $diff.Chunks.Add($chunk)
 
-                    $capture = $true
+        } elseif ($capture) {
 
-                    $chunk = [PSCustomObject]@{
-                        StartLine = [long]$matches[1]
-                        LineCount = 1
-                        Lines     = (New-Object System.Collections.Generic.List[PSCustomObject])
+            if ($line -match "^([\s\+\-])(.*)$") {
+
+                $chunk.LineCount++
+
+                $chunk.Lines.Add([PSCustomObject]@{
+                    Line      = $matches[2]
+                    Inclusion = switch ($matches[1]) {
+                        "+"     { [GitDiffInclusion]::Right }
+                        "-"     { [GitDiffInclusion]::Left  }
+                        default { [GitDiffInclusion]::Both  }
                     }
-
-                    $chunk.Lines.Add([PSCustomObject]@{
-                        Line      = $matches[2]
-                        Inclusion = [GitDiffInclusion]::Both
-                    })
-
-                    $diff.Chunks.Add($chunk)
-                }
-            }
-
-            (-Not($line.StartsWith("@@")) -And $capture) {
-
-                if ($line -match "^([\s\+\-])(.*)$") {
-
-                    $chunk.LineCount++
-
-                    $chunk.Lines.Add([PSCustomObject]@{
-                        Line      = $matches[2]
-                        Inclusion = switch ($matches[1]) {
-                            "+"     { [GitDiffInclusion]::Right }
-                            "-"     { [GitDiffInclusion]::Left  }
-                            default { [GitDiffInclusion]::Both  }
-                        }
-                    })
-                }
+                })
             }
         }
     }

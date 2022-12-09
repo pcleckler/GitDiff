@@ -11,3 +11,4 @@ index 4fd8f04..fcd220c 100644
         plain = white dim
         old = red bold
         new = green bold
+\ No newline at end of file
