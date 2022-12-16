@@ -87,7 +87,7 @@ function ConvertFrom-GitDiff {
 
             $diff.Messages.Add($matches[1])
 
-        } elseif ($line -match "^@@ .* \+([0-9]+),[0-9]+ @@\s*(.*)$") {
+        } elseif ($line -match "^@@.*\+([0-9]+),[0-9]+.*@@\s*(.*)$") {
 
             $capture = $true
 
@@ -99,6 +99,7 @@ function ConvertFrom-GitDiff {
 
             $chunk.Lines.Add([PSCustomObject]@{
                 Line      = $matches[2]
+                LineNo    = [long]$matches[1]
                 Inclusion = [GitDiffInclusion]::Both
             })
 
@@ -108,16 +109,17 @@ function ConvertFrom-GitDiff {
 
             if ($line -match "^([\s\+\-])(.*)$") {
 
-                $chunk.LineCount++
-
                 $chunk.Lines.Add([PSCustomObject]@{
                     Line      = $matches[2]
+                    LineNo    = $chunk.StartLine + $chunk.LineCount
                     Inclusion = switch ($matches[1]) {
                         "+"     { [GitDiffInclusion]::Right }
                         "-"     { [GitDiffInclusion]::Left  }
                         default { [GitDiffInclusion]::Both  }
                     }
                 })
+
+                $chunk.LineCount++
             }
         }
     }
